@@ -1,0 +1,61 @@
+name: Refresh Operations Data Hub
+
+on:
+  # Run automatically every day at 6:00 AM London time (UTC+1 BST / UTC+0 GMT)
+  schedule:
+    - cron: '0 5 * * *'   # 5am UTC = 6am BST
+
+  # Allow manual trigger from the GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual refresh'
+        required: false
+        default: 'Manual data refresh'
+
+jobs:
+  refresh:
+    name: Fetch Salesforce data, rebuild dashboard, upload to SharePoint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch Salesforce reports
+        env:
+          SF_USERNAME:       ${{ secrets.SF_USERNAME }}
+          SF_PASSWORD:       ${{ secrets.SF_PASSWORD }}
+          SF_SECURITY_TOKEN: ${{ secrets.SF_SECURITY_TOKEN }}
+          SF_CLIENT_ID:      ${{ secrets.SF_CLIENT_ID }}
+          SF_CLIENT_SECRET:  ${{ secrets.SF_CLIENT_SECRET }}
+          SF_INSTANCE_URL:   ${{ secrets.SF_INSTANCE_URL }}
+        run: python fetch_salesforce.py
+
+      - name: Build dashboard
+        run: python build.py
+
+      - name: Upload to SharePoint
+        env:
+          AZURE_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET:   ${{ secrets.AZURE_CLIENT_SECRET }}
+          SHAREPOINT_SITE_URL:   ${{ secrets.SHAREPOINT_SITE_URL }}
+          SHAREPOINT_FOLDER:     ${{ secrets.SHAREPOINT_FOLDER }}
+        run: python upload_to_sharepoint.py
+
+      - name: Commit updated index.html to repo
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --staged --quiet || git commit -m "Auto-refresh: $(date +'%d %b %Y %H:%M UTC')"
+          git push
