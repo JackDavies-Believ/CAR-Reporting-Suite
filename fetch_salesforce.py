@@ -48,7 +48,7 @@ def get_access_token():
     security_token= os.environ.get("SF_TOKEN", "")
     client_id     = os.environ["SF_CONSUMER_KEY"]
     client_secret = os.environ["SF_CONSUMER_SECRET"]
-    instance_url  = os.environ.get("SF_INSTANCE_URL", "https://sitetracker-libertycharge.my.salesforce.com")
+    instance_url  = os.environ.get("SF_INSTANCE_URL") or "https://sitetracker-libertycharge.my.salesforce.com"
 
     # Use the instance URL directly for custom domains
     login_url = instance_url.rstrip("/")
